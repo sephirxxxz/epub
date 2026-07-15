@@ -28,10 +28,12 @@ declare module 'epubjs' {
   }
 
   export interface EpubBook {
-    rendition: (element: HTMLElement, options?: Record<string, unknown>) => EpubRendition;
+    renderTo(element: HTMLElement, options?: Record<string, unknown>): EpubRendition;
     loaded: { metadata: Promise<{ title?: string; creator?: string }> };
     navigation: Promise<{ toc: Array<{ label: string; href: string; subitems?: unknown[] }> }>;
     spine: { get(target: string): unknown };
+    on(event: string, callback: (...args: unknown[]) => void): void;
+    off(event: string, callback: (...args: unknown[]) => void): void;
     destroy(): void;
   }
 

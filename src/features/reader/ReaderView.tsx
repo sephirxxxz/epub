@@ -21,6 +21,35 @@ interface DetailState {
   annotation?: Annotation;
 }
 
+const EPUB_OPEN_TIMEOUT_MS = 20_000;
+
+function errorMessage(error: unknown): string {
+  if (error instanceof Error && error.message) return error.message;
+  if (typeof error === 'string' && error) return error;
+  try {
+    const serialized = JSON.stringify(error);
+    return serialized && serialized !== '{}' ? serialized : '未知错误';
+  } catch {
+    return '未知错误';
+  }
+}
+
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = window.setTimeout(() => reject(new Error(`加载超过 ${timeoutMs / 1000} 秒`)), timeoutMs);
+    promise.then(
+      (value) => {
+        window.clearTimeout(timer);
+        resolve(value);
+      },
+      (error) => {
+        window.clearTimeout(timer);
+        reject(error);
+      },
+    );
+  });
+}
+
 export function ReaderView({ book, onBack, onNotice }: ReaderViewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const epubRef = useRef<EpubBook | null>(null);
@@ -37,7 +66,17 @@ export function ReaderView({ book, onBack, onNotice }: ReaderViewProps) {
 
   useEffect(() => {
     let disposed = false;
+    let settled = false;
     const dictionary = new DictionaryService();
+
+    const fail = (reason: unknown) => {
+      if (disposed || settled) return;
+      settled = true;
+      const detail = errorMessage(reason);
+      console.error('[Glossary] EPUB open failed:', reason);
+      onNotice(`EPUB 打开失败：${detail}`);
+      setIsLoading(false);
+    };
 
     async function mountReader() {
       const data = await loadBookFile(book.id);
@@ -50,7 +89,9 @@ export function ReaderView({ book, onBack, onNotice }: ReaderViewProps) {
       if (!containerRef.current) return;
 
       const epubBook = ePub(data);
-      const rendition = epubBook.rendition(containerRef.current, {
+      const onOpenFailed = (reason: unknown) => fail(reason);
+      epubBook.on('openFailed', onOpenFailed);
+      const rendition = epubBook.renderTo(containerRef.current, {
         width: '100%',
         height: '100%',
         spread: 'none',
@@ -143,14 +184,17 @@ export function ReaderView({ book, onBack, onNotice }: ReaderViewProps) {
       });
 
       const progress = localDb.getProgress(book.id);
-      await epubBook.loaded.metadata;
-      await rendition.display(progress?.cfi);
+      await withTimeout((async () => {
+        await epubBook.loaded.metadata;
+        await rendition.display(progress?.cfi);
+      })(), EPUB_OPEN_TIMEOUT_MS);
+      if (!disposed) {
+        settled = true;
+        setIsLoading(false);
+      }
     }
 
-    void mountReader().catch(() => {
-      if (!disposed) onNotice('EPUB 打开失败：请确认它是无 DRM 的可重排版 EPUB');
-      setIsLoading(false);
-    });
+    void mountReader().catch((reason) => fail(reason));
 
     return () => {
       disposed = true;
