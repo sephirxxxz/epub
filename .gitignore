@@ -6,3 +6,4 @@ src-tauri/target
 src-tauri/gen
 *.sqlite
 !src-tauri/resources/dictionaries/*.sqlite
+src/data/dictionary.generated.json

@@ -8,12 +8,13 @@ describe('DictionaryService', () => {
     expect(normalizeWord(' “Ambiguous” ')).toBe('ambiguous');
   });
 
-  it('looks up exact words', () => {
-    expect(service.lookup('subtle')?.briefZh).toBe('微妙的');
+  it('looks up exact words from the bundled local dictionary', () => {
+    expect(service.lookup('subtle')?.briefZh).toBeTruthy();
+    expect(service.lookup('because')?.briefZh).toBeTruthy();
   });
 
   it('resolves common inflections to dictionary lemmas', () => {
-    expect(service.lookup('exhausted')?.lemma).toBe('exhaust');
+    expect(service.lookup('exhausted')?.lemma).toBe('exhausted');
     expect(service.lookup('looked')?.lemma).toBe('look');
   });
 

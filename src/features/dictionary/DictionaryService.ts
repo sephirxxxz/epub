@@ -1,3 +1,4 @@
+import generatedDictionary from '../../data/dictionary.json';
 import type { DictionaryEntry } from '../../db/models';
 import { localDb } from '../../db/localDb';
 
@@ -28,11 +29,18 @@ function candidates(surface: string): string[] {
   return [...new Set(result)];
 }
 
+const generatedEntries = generatedDictionary as DictionaryEntry[];
+
 export class DictionaryService {
   private readonly entries: Map<string, DictionaryEntry>;
 
-  constructor(entries = localDb.getDictionary()) {
-    this.entries = new Map(entries.map((entry) => [normalizeWord(entry.word), entry]));
+  constructor(entries?: DictionaryEntry[]) {
+    const savedEntries = entries ?? localDb.getDictionary();
+    this.entries = new Map<string, DictionaryEntry>();
+    for (const entry of [...generatedEntries, ...savedEntries]) {
+      const key = normalizeWord(entry.word);
+      if (key && !this.entries.has(key)) this.entries.set(key, entry);
+    }
   }
 
   lookup(surface: string): DictionaryEntry | undefined {

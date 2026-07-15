@@ -16,7 +16,7 @@ A lightweight, offline-first macOS EPUB reader for English books. Click a word t
 - Persistent annotations stored separately from the original EPUB
 - Single-click quick gloss interaction
 - Double-click detail card interaction
-- Offline dictionary integration point for ECDICT-derived data
+- Bundled 30,000-entry ECDICT-derived offline English–Chinese dictionary
 - Rust/Tauri security helpers for EPUB filename and archive-member validation
 - A native Apple Silicon macOS DMG bundle
 

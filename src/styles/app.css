@@ -63,7 +63,7 @@ h1 { margin: 0; color: #29251f; font-family: Georgia, serif; font-size: 50px; fo
 .translation-editor input { width: 100%; padding: 7px 8px; border: 1px solid #ddcdb9; border-radius: 5px; color: #514333; background: #fffdf8; font-size: 13px; }
 /* Applied inside epub.js chapter iframes. */
 .glossary-annotation { display: inline-ruby; ruby-position: under; cursor: pointer; text-decoration: underline dotted #c5a27666; text-decoration-thickness: 1px; }
-.glossary-original { display: inline; }
+.glossary-original { display: inline; font-weight: 600; }
 .glossary-translation { color: #9a6f45; font-family: -apple-system, BlinkMacSystemFont, sans-serif; font-size: .62em; font-weight: 500; line-height: 1.1; ruby-align: center; user-select: none; }
 .reader-dark { background: #22201d; }
 .reader-dark .reader-toolbar { border-color: #39332d; background: #272420ee; }

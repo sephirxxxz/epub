@@ -4,6 +4,8 @@ const BOOKS_KEY = 'glossary.books';
 const ANNOTATIONS_KEY = 'glossary.annotations';
 const PROGRESS_KEY = 'glossary.progress';
 const DICTIONARY_KEY = 'glossary.dictionary';
+const DICTIONARY_VERSION_KEY = 'glossary.dictionary.version';
+const DICTIONARY_VERSION = 2;
 
 const now = () => new Date().toISOString();
 
@@ -95,11 +97,20 @@ export const localDb = {
   },
 
   getDictionary(): DictionaryEntry[] {
-    return read<DictionaryEntry[]>(DICTIONARY_KEY, defaultDictionary);
+    const storedVersion = read<number>(DICTIONARY_VERSION_KEY, 0);
+    const stored = read<DictionaryEntry[]>(DICTIONARY_KEY, []);
+    if (storedVersion < DICTIONARY_VERSION) {
+      const merged = [...defaultDictionary, ...stored.filter((item) => !defaultDictionary.some((seed) => seed.word === item.word))];
+      write(DICTIONARY_KEY, merged);
+      write(DICTIONARY_VERSION_KEY, DICTIONARY_VERSION);
+      return merged;
+    }
+    return stored.length > 0 ? stored : defaultDictionary;
   },
 
   setDictionary(entries: DictionaryEntry[]) {
     write(DICTIONARY_KEY, entries);
+    write(DICTIONARY_VERSION_KEY, DICTIONARY_VERSION);
   },
 };
 

@@ -1,14 +1,14 @@
-export function rangeFromCfi(contents: { range(cfi: string): Range }, cfi: string): Range | null {
+export function rangeFromCfi(contents: { range(cfi: string, ignoreClass?: string): Range }, cfi: string, ignoreClass?: string): Range | null {
   try {
-    return contents.range(cfi);
+    return contents.range(cfi, ignoreClass);
   } catch {
     return null;
   }
 }
 
-export function cfiFromRange(contents: { cfiFromRange(range: Range): string }, range: Range): string | null {
+export function cfiFromRange(contents: { cfiFromRange(range: Range, ignoreClass?: string): string }, range: Range, ignoreClass?: string): string | null {
   try {
-    return contents.cfiFromRange(range);
+    return contents.cfiFromRange(range, ignoreClass);
   } catch {
     return null;
   }

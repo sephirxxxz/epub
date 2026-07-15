@@ -58,10 +58,11 @@ export function ReaderView({ book, onBack, onNotice }: ReaderViewProps) {
   const currentHrefRef = useRef('');
   const timerRef = useRef<number | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [annotations, setAnnotations] = useState<Annotation[]>(() => localDb.listAnnotations(book.id));
+  const [, setAnnotations] = useState<Annotation[]>(() => localDb.listAnnotations(book.id));
   const [detail, setDetail] = useState<DetailState | null>(null);
   const [translationDraft, setTranslationDraft] = useState('');
   const [fontSize, setFontSize] = useState(100);
+  const [pageLabel, setPageLabel] = useState('');
   const [isDark, setIsDark] = useState(false);
 
   useEffect(() => {
@@ -101,11 +102,13 @@ export function ReaderView({ book, onBack, onNotice }: ReaderViewProps) {
       epubRef.current = epubBook;
       renditionRef.current = rendition;
       rendition.themes.register('glossary-light', {
-        body: { color: '#29251f !important', background: '#f7f3eb !important', 'font-family': 'Iowan Old Style, Georgia, serif !important' },
+        body: { color: '#29251f !important', background: '#f7f3eb !important', 'font-family': 'Iowan Old Style, Georgia, serif !important', 'font-weight': '600 !important' },
+        'body, body *': { 'font-weight': '600 !important' },
         'a': { color: '#936d42 !important' },
       });
       rendition.themes.register('glossary-dark', {
-        body: { color: '#e8dfd1 !important', background: '#22201d !important', 'font-family': 'Iowan Old Style, Georgia, serif !important' },
+        body: { color: '#e8dfd1 !important', background: '#22201d !important', 'font-family': 'Iowan Old Style, Georgia, serif !important', 'font-weight': '600 !important' },
+        'body, body *': { 'font-weight': '600 !important' },
         'a': { color: '#ddb581 !important' },
       });
       rendition.themes.select(isDark ? 'glossary-dark' : 'glossary-light');
@@ -136,7 +139,7 @@ export function ReaderView({ book, onBack, onNotice }: ReaderViewProps) {
               onNotice(`本地词典没有找到 “${clicked.word}”`);
               return;
             }
-            const cfi = cfiFromRange(contents, clicked.range);
+            const cfi = cfiFromRange(contents, clicked.range, 'glossary-annotation');
             if (!cfi) {
               onNotice('无法保存这个词的位置');
               return;
@@ -175,6 +178,8 @@ export function ReaderView({ book, onBack, onNotice }: ReaderViewProps) {
         const cfi = location.start?.cfi;
         const href = location.start?.href ?? '';
         currentHrefRef.current = href;
+        const displayed = location.start?.displayed;
+        setPageLabel(displayed?.page && displayed?.total ? `${displayed.page} / ${displayed.total}` : '');
         localDb.saveProgress({ bookId: book.id, cfi, href, percentage: location.start?.percentage ?? 0 });
       });
       rendition.on('rendered', (_section, view) => {
@@ -232,10 +237,6 @@ export function ReaderView({ book, onBack, onNotice }: ReaderViewProps) {
     <section className={`reader-page ${isDark ? 'reader-dark' : ''}`}>
       <header className="reader-toolbar">
         <button className="icon-button" onClick={onBack} aria-label="返回书库">←</button>
-        <div className="reader-book-title">
-          <strong>{book.title}</strong>
-          <span>{book.author}</span>
-        </div>
         <div className="reader-controls">
           <button className="toolbar-button" onClick={() => setFontSize((size) => Math.max(80, size - 10))}>A−</button>
           <span className="font-size-label">{fontSize}%</span>
@@ -279,7 +280,7 @@ export function ReaderView({ book, onBack, onNotice }: ReaderViewProps) {
           </aside>
         )}
       </div>
-      <footer className="reader-footer">已保存 {annotations.filter((item) => !item.hidden).length} 条译注 · 单击查词，双击查看详细释义</footer>
+      <footer className="reader-footer">{pageLabel ? `第 ${pageLabel} 页` : '—'}</footer>
     </section>
   );
 }

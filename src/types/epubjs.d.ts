@@ -1,14 +1,14 @@
 declare module 'epubjs' {
   export interface EpubLocation {
-    start?: { cfi?: string; href?: string; percentage?: number };
-    end?: { cfi?: string; href?: string; percentage?: number };
+    start?: { cfi?: string; href?: string; percentage?: number; displayed?: { page?: number; total?: number } };
+    end?: { cfi?: string; href?: string; percentage?: number; displayed?: { page?: number; total?: number } };
   }
 
   export interface EpubContents {
     document: Document;
     window: Window;
-    cfiFromRange(range: Range): string;
-    range(cfi: string): Range;
+    cfiFromRange(range: Range, ignoreClass?: string): string;
+    range(cfi: string, ignoreClass?: string): Range;
   }
 
   export interface EpubRendition {
