@@ -1,0 +1,72 @@
+* { box-sizing: border-box; }
+:root {
+  color: #29251f;
+  background: #f4f0e8;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}
+body { margin: 0; min-width: 900px; min-height: 100vh; background: #f4f0e8; }
+button, input { font: inherit; }
+button { cursor: pointer; }
+.app-shell { min-height: 100vh; }
+.library-page { width: min(1180px, calc(100vw - 80px)); margin: 0 auto; padding: 72px 0 80px; }
+.library-header { display: flex; align-items: end; justify-content: space-between; gap: 32px; margin-bottom: 42px; }
+.eyebrow { margin: 0 0 12px; color: #9b7650; font-size: 11px; font-weight: 800; letter-spacing: .18em; }
+h1 { margin: 0; color: #29251f; font-family: Georgia, serif; font-size: 50px; font-weight: 500; letter-spacing: -.04em; }
+.muted { margin: 12px 0 0; color: #81776c; font-size: 15px; }
+.button { display: inline-flex; align-items: center; justify-content: center; border-radius: 8px; padding: 12px 18px; font-size: 14px; font-weight: 700; }
+.button-primary { color: #fffaf0; background: #6b4c32; box-shadow: 0 8px 20px #6b4c3222; }
+.button-primary:hover { background: #523820; }
+.drop-zone { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; min-height: 118px; margin-bottom: 38px; border: 1px dashed #cbbda9; border-radius: 12px; color: #8c7c6d; background: #f9f6f0aa; text-align: center; transition: .2s ease; }
+.drop-zone strong { color: #6b4c32; font-family: Georgia, serif; font-size: 20px; font-weight: 500; }
+.drop-zone-active { border-color: #936d42; background: #efe4d6; transform: translateY(-2px); }
+.book-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 30px 24px; }
+.book-card { min-width: 0; }
+.book-cover { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; width: 100%; aspect-ratio: 2 / 3; padding: 24px; border: 0; border-radius: 5px; color: #f8f0e3; background: linear-gradient(145deg, #382f29, #73543b); box-shadow: 0 13px 26px #49362524; font-family: Georgia, serif; font-size: 22px; line-height: 1.15; text-align: center; transition: transform .2s ease, box-shadow .2s ease; }
+.book-cover:hover { transform: translateY(-5px); box-shadow: 0 18px 32px #49362532; }
+.book-cover-mark { display: grid; place-items: center; width: 48px; height: 48px; border: 1px solid #d9ba8a88; border-radius: 50%; color: #d9ba8a; font-family: Georgia, serif; font-size: 20px; }
+.book-card-body { padding: 14px 2px; }
+.book-card h2 { overflow: hidden; margin: 0 0 5px; color: #393129; font-family: Georgia, serif; font-size: 18px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+.book-card p { margin: 0; color: #998d80; font-size: 13px; }
+.book-card-actions, .dictionary-actions { display: flex; gap: 14px; margin-top: 14px; }
+.text-button { padding: 0; border: 0; color: #88623c; background: transparent; font-size: 13px; font-weight: 700; }
+.text-button:hover { color: #523820; text-decoration: underline; }
+.text-button.danger { color: #a7655b; }
+.toast { position: fixed; right: 24px; bottom: 24px; z-index: 30; max-width: 360px; padding: 12px 16px; border: 1px solid #d6c3a9; border-radius: 8px; color: #5e4a38; background: #fffaf3; box-shadow: 0 10px 30px #2d20131c; font-size: 14px; }
+.reader-page { display: flex; flex-direction: column; width: 100vw; height: 100vh; overflow: hidden; background: #f7f3eb; }
+.reader-toolbar { display: flex; align-items: center; gap: 18px; min-height: 68px; padding: 0 26px; border-bottom: 1px solid #e6ddd0; background: #faf7f1ee; }
+.icon-button, .toolbar-button, .page-button, .close-button { border: 0; color: #74583e; background: transparent; }
+.icon-button { font-size: 28px; line-height: 1; }
+.reader-book-title { display: flex; flex-direction: column; gap: 2px; min-width: 200px; }
+.reader-book-title strong { color: #342b23; font-family: Georgia, serif; font-size: 17px; font-weight: 600; }
+.reader-book-title span { color: #9a8e80; font-size: 12px; }
+.reader-controls { display: flex; align-items: center; gap: 12px; margin-left: auto; }
+.toolbar-button { padding: 7px 9px; border-radius: 5px; font-size: 13px; }
+.toolbar-button:hover { background: #ede4d8; }
+.font-size-label { width: 42px; color: #a39484; font-size: 12px; text-align: center; }
+.reader-main { position: relative; display: flex; flex: 1; align-items: center; justify-content: center; min-height: 0; }
+.epub-container { width: min(780px, calc(100vw - 180px)); height: calc(100% - 50px); overflow: hidden; background: #f7f3eb; }
+.epub-container iframe { background: #f7f3eb; }
+.page-button { width: 58px; font-family: Georgia, serif; font-size: 50px; font-weight: 300; opacity: .65; }
+.page-button:hover { opacity: 1; }
+.reader-loading { position: absolute; color: #9a8e80; font-family: Georgia, serif; font-size: 18px; }
+.reader-footer { min-height: 38px; padding: 10px; color: #a39484; font-size: 11px; text-align: center; }
+.dictionary-card { position: absolute; top: 28px; right: 28px; z-index: 10; width: 290px; padding: 23px 22px; border: 1px solid #dfd1bd; border-radius: 10px; color: #45392d; background: #fffaf2; box-shadow: 0 18px 38px #38281626; }
+.close-button { position: absolute; top: 9px; right: 11px; font-size: 22px; }
+.dictionary-word { margin: 0 0 5px; color: #30271f; font-family: Georgia, serif; font-size: 29px; }
+.dictionary-meta { margin: 0; color: #a18d78; font-size: 12px; }
+.dictionary-brief { margin: 19px 0 10px; color: #825e39; font-size: 18px; font-weight: 700; }
+.dictionary-card ol { margin: 0; padding-left: 19px; color: #6c6053; font-family: Georgia, serif; font-size: 14px; line-height: 1.7; }
+.dictionary-card .dictionary-actions { flex-wrap: wrap; }
+.translation-editor { display: flex; flex-direction: column; gap: 5px; width: 100%; color: #958675; font-size: 11px; font-weight: 700; }
+.translation-editor input { width: 100%; padding: 7px 8px; border: 1px solid #ddcdb9; border-radius: 5px; color: #514333; background: #fffdf8; font-size: 13px; }
+/* Applied inside epub.js chapter iframes. */
+.glossary-annotation { display: inline-ruby; ruby-position: under; cursor: pointer; text-decoration: underline dotted #c5a27666; text-decoration-thickness: 1px; }
+.glossary-original { display: inline; }
+.glossary-translation { color: #9a6f45; font-family: -apple-system, BlinkMacSystemFont, sans-serif; font-size: .62em; font-weight: 500; line-height: 1.1; ruby-align: center; user-select: none; }
+.reader-dark { background: #22201d; }
+.reader-dark .reader-toolbar { border-color: #39332d; background: #272420ee; }
+.reader-dark .reader-book-title strong, .reader-dark .icon-button, .reader-dark .toolbar-button { color: #e8dfd1; }
+.reader-dark .toolbar-button:hover { background: #39332d; }
+@media (max-width: 1000px) { .book-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
