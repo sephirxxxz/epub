@@ -51,7 +51,33 @@ h1 { margin: 0; color: #29251f; font-family: Georgia, serif; font-size: 50px; fo
 .page-button { width: 58px; font-family: Georgia, serif; font-size: 50px; font-weight: 300; opacity: .65; }
 .page-button:hover { opacity: 1; }
 .reader-loading { position: absolute; color: #9a8e80; font-family: Georgia, serif; font-size: 18px; }
-.reader-footer { min-height: 38px; padding: 10px; color: #a39484; font-size: 11px; text-align: center; }
+.reader-footer { display: flex; align-items: center; gap: 12px; min-height: 48px; padding: 8px 26px; border-top: 1px solid #e6ddd0; color: #a39484; font-size: 11px; }
+.progress-bar { flex: 1; height: 3px; background: #ddd4c4; border-radius: 2px; cursor: pointer; }
+.progress-fill { height: 100%; background: #936d42; border-radius: 2px; }
+.page-label { white-space: nowrap; }
+.selection-menu { position: fixed; z-index: 20; display: flex; gap: 6px; padding: 6px; border: 1px solid #d6c3a9; border-radius: 8px; background: #fffaf3; box-shadow: 0 8px 24px #2d201326; }
+.selection-menu button { padding: 5px 10px; border: 0; border-radius: 5px; color: #5e4a38; background: transparent; font-size: 12px; font-weight: 700; }
+.selection-menu button:hover { background: #f0e6d8; }
+.lookup-drawer, .settings-drawer, .toc-drawer { position: fixed; right: 0; bottom: 0; z-index: 25; width: min(360px, 100vw); max-height: 60vh; padding: 18px 20px; border-top: 1px solid #dfd1bd; border-left: 1px solid #dfd1bd; border-top-left-radius: 14px; color: #45392d; background: #fffaf2ee; backdrop-filter: blur(10px); box-shadow: 0 -8px 30px #3828161c; overflow-y: auto; }
+.lookup-header, .drawer-header { position: relative; display: flex; flex-direction: column; gap: 4px; padding-right: 28px; margin-bottom: 14px; }
+.lookup-header strong, .drawer-header strong { font-family: Georgia, serif; font-size: 22px; }
+.lookup-header span { color: #a18d78; font-size: 12px; }
+.lookup-brief { margin: 6px 0; color: #825e39; font-size: 17px; font-weight: 700; }
+.lookup-drawer ol { margin: 0 0 18px; padding-left: 18px; color: #6c6053; font-family: Georgia, serif; font-size: 14px; line-height: 1.7; }
+.lookup-actions { display: flex; gap: 10px; }
+.lookup-actions .button { padding: 8px 12px; border-radius: 6px; font-size: 13px; font-weight: 700; }
+.lookup-actions .button-primary { color: #fffaf0; background: #6b4c32; }
+.setting-row { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
+.setting-row span { width: 56px; font-size: 13px; }
+.setting-row .toolbar-button { border: 1px solid #ddcdb9; background: #fffdf8; }
+.setting-row .toolbar-button.active { color: #fffaf0; background: #6b4c32; border-color: #6b4c32; }
+.toc-list { display: flex; flex-direction: column; gap: 6px; }
+.toc-item { text-align: left; padding: 8px 0; border: 0; border-bottom: 1px solid #efe4d6; color: #5e4a38; background: transparent; font-size: 14px; }
+.toc-item:hover { color: #936d42; }
+.reader-dark .reader-footer { border-color: #39332d; }
+.reader-dark .progress-bar { background: #4a453e; }
+.reader-dark .lookup-drawer, .reader-dark .settings-drawer, .reader-dark .toc-drawer { background: #2a2722ee; border-color: #4a453e; color: #e8dfd1; }
+.reader-dark .lookup-brief { color: #ddb581; }
 .dictionary-card { position: absolute; top: 28px; right: 28px; z-index: 10; width: 290px; padding: 23px 22px; border: 1px solid #dfd1bd; border-radius: 10px; color: #45392d; background: #fffaf2; box-shadow: 0 18px 38px #38281626; }
 .close-button { position: absolute; top: 9px; right: 11px; font-size: 22px; }
 .dictionary-word { margin: 0 0 5px; color: #30271f; font-family: Georgia, serif; font-size: 29px; }

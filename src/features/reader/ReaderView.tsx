@@ -16,9 +16,18 @@ interface ReaderViewProps {
   onNotice: (notice: string) => void;
 }
 
-interface DetailState {
+interface SelectionState {
+  range: Range;
+  cfi: string;
+  surface: string;
+  clientRect: DOMRect;
+}
+
+interface LookupState {
   entry: DictionaryEntry;
-  annotation?: Annotation;
+  surface: string;
+  cfi: string;
+  range: Range;
 }
 
 const EPUB_OPEN_TIMEOUT_MS = 20_000;
@@ -59,11 +68,17 @@ export function ReaderView({ book, onBack, onNotice }: ReaderViewProps) {
   const timerRef = useRef<number | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [, setAnnotations] = useState<Annotation[]>(() => localDb.listAnnotations(book.id));
-  const [detail, setDetail] = useState<DetailState | null>(null);
-  const [translationDraft, setTranslationDraft] = useState('');
+  const [selection, setSelection] = useState<SelectionState | null>(null);
+  const [lookup, setLookup] = useState<LookupState | null>(null);
   const [fontSize, setFontSize] = useState(100);
+  const [lineHeight, setLineHeight] = useState(1.6);
+  const [margin, setMargin] = useState(24);
   const [pageLabel, setPageLabel] = useState('');
+  const [progress, setProgress] = useState(0);
   const [isDark, setIsDark] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  const [toc, setToc] = useState<Array<{ label: string; href: string }>>([]);
+  const [showToc, setShowToc] = useState(false);
 
   useEffect(() => {
     let disposed = false;
@@ -101,77 +116,20 @@ export function ReaderView({ book, onBack, onNotice }: ReaderViewProps) {
       });
       epubRef.current = epubBook;
       renditionRef.current = rendition;
-      rendition.themes.register('glossary-light', {
-        body: { color: '#29251f !important', background: '#f7f3eb !important', 'font-family': 'Iowan Old Style, Georgia, serif !important', 'font-weight': '600 !important' },
-        'body, body *': { 'font-weight': '600 !important' },
-        'a': { color: '#936d42 !important' },
-      });
-      rendition.themes.register('glossary-dark', {
-        body: { color: '#e8dfd1 !important', background: '#22201d !important', 'font-family': 'Iowan Old Style, Georgia, serif !important', 'font-weight': '600 !important' },
-        'body, body *': { 'font-weight': '600 !important' },
-        'a': { color: '#ddb581 !important' },
-      });
-      rendition.themes.select(isDark ? 'glossary-dark' : 'glossary-light');
+      applyTheme(rendition, isDark);
       rendition.themes.fontSize(`${fontSize}%`);
+
+      const metadata = await epubBook.loaded.metadata;
+      if (metadata.title) {
+        document.title = `${metadata.title} · Glossary`;
+      }
+      const tocItems = await epubBook.navigation;
+      if (!disposed) setToc(tocItems.toc.map((item: { label: string; href: string }) => ({ label: item.label, href: item.href })));
 
       rendition.hooks.content.register((contents) => {
         contentsRef.current = contents;
         renderAnnotations(contents, localDb.listAnnotations(book.id));
-
-        let clickTimer: number | null = null;
-        const onClick = (event: MouseEvent) => {
-          const existing = (event.target as HTMLElement).closest<HTMLElement>('.glossary-annotation');
-          if (existing?.dataset.annotationId) {
-            const found = localDb.listAnnotations(book.id).find((item) => item.id === existing.dataset.annotationId);
-            if (found) {
-              if (clickTimer) window.clearTimeout(clickTimer);
-              clickTimer = window.setTimeout(() => setDetail({ entry: found.detailSnapshot, annotation: found }), 220);
-              return;
-            }
-          }
-
-          const clicked = wordAtPoint(contents.document, event);
-          if (!clicked) return;
-          if (clickTimer) window.clearTimeout(clickTimer);
-          clickTimer = window.setTimeout(() => {
-            const entry = dictionary.lookup(clicked.word);
-            if (!entry) {
-              onNotice(`本地词典没有找到 “${clicked.word}”`);
-              return;
-            }
-            const cfi = cfiFromRange(contents, clicked.range, 'glossary-annotation');
-            if (!cfi) {
-              onNotice('无法保存这个词的位置');
-              return;
-            }
-            const context = contextAround(clicked.range);
-            const annotation = saveAnnotation(book.id, {
-              href: currentHrefRef.current,
-              cfi,
-              ...context,
-            }, entry);
-            setAnnotations(localDb.listAnnotations(book.id));
-            renderAnnotations(contents, localDb.listAnnotations(book.id));
-            onNotice(`已保存：${entry.briefZh}`);
-            void annotation;
-          }, 220);
-        };
-        const onDoubleClick = (event: MouseEvent) => {
-          if (clickTimer) window.clearTimeout(clickTimer);
-          const existing = (event.target as HTMLElement).closest<HTMLElement>('.glossary-annotation');
-          if (existing?.dataset.annotationId) {
-            const found = localDb.listAnnotations(book.id).find((item) => item.id === existing.dataset.annotationId);
-            if (found) setDetail({ entry: found.detailSnapshot, annotation: found });
-            return;
-          }
-          const clicked = wordAtPoint(contents.document, event);
-          if (!clicked) return;
-          const entry = dictionary.lookup(clicked.word);
-          if (entry) setDetail({ entry });
-          else onNotice(`本地词典没有找到 “${clicked.word}”`);
-        };
-        contents.document.addEventListener('click', onClick);
-        contents.document.addEventListener('dblclick', onDoubleClick);
+        attachSelectionHandlers(contents, dictionary);
       });
 
       rendition.on('relocated', (location) => {
@@ -180,11 +138,13 @@ export function ReaderView({ book, onBack, onNotice }: ReaderViewProps) {
         currentHrefRef.current = href;
         const displayed = location.start?.displayed;
         setPageLabel(displayed?.page && displayed?.total ? `${displayed.page} / ${displayed.total}` : '');
+        setProgress(location.start?.percentage ?? 0);
         localDb.saveProgress({ bookId: book.id, cfi, href, percentage: location.start?.percentage ?? 0 });
       });
       rendition.on('rendered', (_section, view) => {
         contentsRef.current = view.contents;
         renderAnnotations(view.contents, localDb.listAnnotations(book.id));
+        attachSelectionHandlers(view.contents, dictionary);
         setIsLoading(false);
       });
 
@@ -196,6 +156,88 @@ export function ReaderView({ book, onBack, onNotice }: ReaderViewProps) {
       if (!disposed) {
         settled = true;
         setIsLoading(false);
+      }
+    }
+
+    function applyTheme(rendition: EpubRendition, dark: boolean) {
+      rendition.themes.register('glossary-light', {
+        body: {
+          color: '#29251f !important',
+          background: '#f7f3eb !important',
+          'font-family': 'Iowan Old Style, Georgia, serif !important',
+          'font-weight': '600 !important',
+          'line-height': `${lineHeight} !important`,
+        },
+        'body, body *': { 'font-weight': '600 !important' },
+        'a': { color: '#936d42 !important' },
+      });
+      rendition.themes.register('glossary-dark', {
+        body: {
+          color: '#e8dfd1 !important',
+          background: '#22201d !important',
+          'font-family': 'Iowan Old Style, Georgia, serif !important',
+          'font-weight': '600 !important',
+          'line-height': `${lineHeight} !important`,
+        },
+        'body, body *': { 'font-weight': '600 !important' },
+        'a': { color: '#ddb581 !important' },
+      });
+      rendition.themes.select(dark ? 'glossary-dark' : 'glossary-light');
+    }
+
+    function attachSelectionHandlers(contents: EpubContents, dictionary: DictionaryService) {
+      const doc = contents.document;
+      let longPressTimer: number | null = null;
+
+      const clearSelection = () => {
+        if (longPressTimer) window.clearTimeout(longPressTimer);
+        longPressTimer = null;
+        setSelection(null);
+      };
+
+      const onPointerDown = (event: PointerEvent) => {
+        if (longPressTimer) window.clearTimeout(longPressTimer);
+        longPressTimer = window.setTimeout(() => {
+          const clicked = wordAtPoint(doc, event);
+          if (clicked) {
+            const range = clicked.range;
+            const selection = doc.getSelection();
+            selection?.removeAllRanges();
+            selection?.addRange(range);
+            showSelectionMenu(contents, range, clicked.word, dictionary);
+          }
+        }, 350);
+      };
+
+      const onPointerUp = () => {
+        if (longPressTimer) window.clearTimeout(longPressTimer);
+        longPressTimer = null;
+        const sel = doc.getSelection();
+        if (sel && !sel.isCollapsed) {
+          showSelectionMenu(contents, sel.getRangeAt(0), sel.toString().trim(), dictionary);
+        }
+      };
+
+      const onClick = (event: MouseEvent) => {
+        const target = event.target as HTMLElement;
+        if (target.closest('.glossary-annotation')) return;
+        clearSelection();
+      };
+
+      doc.addEventListener('pointerdown', onPointerDown);
+      doc.addEventListener('pointerup', onPointerUp);
+      doc.addEventListener('click', onClick);
+    }
+
+    function showSelectionMenu(contents: EpubContents, range: Range, surface: string, dictionary: DictionaryService) {
+      const rect = range.getBoundingClientRect();
+      const cfi = cfiFromRange(contents, range, 'glossary-annotation') ?? '';
+      setSelection({ range, cfi, surface, clientRect: rect });
+      const entry = dictionary.lookup(surface);
+      if (entry) {
+        setLookup({ entry, surface, cfi, range });
+      } else {
+        setLookup(null);
       }
     }
 
@@ -216,31 +258,76 @@ export function ReaderView({ book, onBack, onNotice }: ReaderViewProps) {
   }, [fontSize]);
 
   useEffect(() => {
-    renditionRef.current?.themes.select(isDark ? 'glossary-dark' : 'glossary-light');
-  }, [isDark]);
+    applyTheme(renditionRef.current, isDark);
+  }, [isDark, lineHeight]);
 
-  function updateAnnotation(id: string, patch: Partial<Annotation>) {
-    localDb.updateAnnotation(id, patch);
-    setAnnotations(localDb.listAnnotations(book.id));
-    if (contentsRef.current) renderAnnotations(contentsRef.current, localDb.listAnnotations(book.id));
+  function applyTheme(rendition: EpubRendition | null, dark: boolean) {
+    if (!rendition) return;
+    rendition.themes.register('glossary-light', {
+      body: {
+        color: '#29251f !important',
+        background: '#f7f3eb !important',
+        'font-family': 'Iowan Old Style, Georgia, serif !important',
+        'font-weight': '600 !important',
+        'line-height': `${lineHeight} !important`,
+        padding: `${margin}px !important`,
+      },
+      'body, body *': { 'font-weight': '600 !important' },
+      'a': { color: '#936d42 !important' },
+    });
+    rendition.themes.register('glossary-dark', {
+      body: {
+        color: '#e8dfd1 !important',
+        background: '#22201d !important',
+        'font-family': 'Iowan Old Style, Georgia, serif !important',
+        'font-weight': '600 !important',
+        'line-height': `${lineHeight} !important`,
+        padding: `${margin}px !important`,
+      },
+      'body, body *': { 'font-weight': '600 !important' },
+      'a': { color: '#ddb581 !important' },
+    });
+    rendition.themes.select(dark ? 'glossary-dark' : 'glossary-light');
   }
 
-  function deleteCurrentAnnotation() {
-    if (!detail?.annotation) return;
-    localDb.deleteAnnotation(detail.annotation.id);
+  function saveGlossFromLookup() {
+    if (!lookup || !contentsRef.current) return;
+    const context = contextAround(lookup.range);
+    const annotation = saveAnnotation(book.id, {
+      href: currentHrefRef.current,
+      cfi: lookup.cfi,
+      quote: lookup.surface,
+      prefix: context.prefix,
+      suffix: context.suffix,
+    }, lookup.entry);
     setAnnotations(localDb.listAnnotations(book.id));
-    if (contentsRef.current) renderAnnotations(contentsRef.current, localDb.listAnnotations(book.id));
-    setDetail(null);
+    renderAnnotations(contentsRef.current, localDb.listAnnotations(book.id));
+    onNotice(`已保存：${annotation.translation}`);
+    setSelection(null);
   }
+
+
+  function gotoChapter(href: string) {
+    void renditionRef.current?.display(href);
+    setShowToc(false);
+  }
+
+  function seekProgress(event: React.MouseEvent<HTMLDivElement>) {
+    const bar = event.currentTarget;
+    const ratio = (event.clientX - bar.getBoundingClientRect().left) / bar.clientWidth;
+    const target = Math.max(0, Math.min(1, ratio));
+    void renditionRef.current?.display(String(target));
+  }
+
+  const menuPosition = selection?.clientRect;
 
   return (
     <section className={`reader-page ${isDark ? 'reader-dark' : ''}`}>
       <header className="reader-toolbar">
         <button className="icon-button" onClick={onBack} aria-label="返回书库">←</button>
         <div className="reader-controls">
-          <button className="toolbar-button" onClick={() => setFontSize((size) => Math.max(80, size - 10))}>A−</button>
-          <span className="font-size-label">{fontSize}%</span>
-          <button className="toolbar-button" onClick={() => setFontSize((size) => Math.min(150, size + 10))}>A+</button>
+          <button className="toolbar-button" onClick={() => setShowToc(true)} aria-label="目录">目录</button>
+          <button className="toolbar-button" onClick={() => setShowSettings(true)} aria-label="Aa">Aa</button>
           <button className="toolbar-button" onClick={() => setIsDark((value) => !value)}>{isDark ? '浅色' : '深色'}</button>
         </div>
       </header>
@@ -250,37 +337,87 @@ export function ReaderView({ book, onBack, onNotice }: ReaderViewProps) {
         <div ref={containerRef} className="epub-container" aria-label="EPUB 阅读区域" />
         <button className="page-button" onClick={() => void renditionRef.current?.next()} aria-label="下一页">›</button>
         {isLoading && <div className="reader-loading">正在打开书籍…</div>}
-        {detail && (
-          <aside className="dictionary-card" role="dialog" aria-label="详细词典释义">
-            <button className="close-button" onClick={() => setDetail(null)} aria-label="关闭">×</button>
-            <p className="dictionary-word">{detail.annotation?.surface ?? detail.entry.word}</p>
-            <p className="dictionary-meta">{detail.entry.phonetic} · {detail.entry.pos}</p>
-            <p className="dictionary-brief">{detail.annotation?.translation ?? detail.entry.briefZh}</p>
-            <ol>{detail.entry.definitions.map((definition) => <li key={definition}>{definition}</li>)}</ol>
-            {detail.annotation && (
-              <div className="dictionary-actions">
-                <label className="translation-editor">
-                  <span>译注文字</span>
-                  <input
-                    value={translationDraft || detail.annotation.translation}
-                    onChange={(event) => setTranslationDraft(event.target.value)}
-                    aria-label="编辑译注"
-                  />
-                </label>
-                <button className="text-button" onClick={() => {
-                  updateAnnotation(detail.annotation!.id, { translation: translationDraft || detail.annotation!.translation });
-                  setTranslationDraft('');
-                }}>保存修改</button>
-                <button className="text-button" onClick={() => updateAnnotation(detail.annotation!.id, { hidden: !detail.annotation!.hidden })}>
-                  {detail.annotation.hidden ? '显示译注' : '隐藏译注'}
-                </button>
-                <button className="text-button danger" onClick={deleteCurrentAnnotation}>删除译注</button>
-              </div>
+
+        {menuPosition && (
+          <div
+            className="selection-menu"
+            style={{ top: menuPosition.top - 48, left: Math.max(8, menuPosition.left + menuPosition.width / 2 - 80) }}
+          >
+            {lookup ? (
+              <>
+                <button onClick={saveGlossFromLookup}>保存译注</button>
+                <button onClick={() => navigator.clipboard?.writeText(selection?.surface ?? '')}>复制</button>
+              </>
+            ) : (
+              <button onClick={() => navigator.clipboard?.writeText(selection?.surface ?? '')}>复制</button>
             )}
-          </aside>
+          </div>
         )}
       </div>
-      <footer className="reader-footer">{pageLabel ? `第 ${pageLabel} 页` : '—'}</footer>
+
+      <footer className="reader-footer">
+        <div className="progress-bar" onClick={seekProgress}>
+          <div className="progress-fill" style={{ width: `${progress * 100}%` }} />
+        </div>
+        <span className="page-label">{pageLabel ? `第 ${pageLabel} 页 · ${Math.round(progress * 100)}%` : `${Math.round(progress * 100)}%`}</span>
+      </footer>
+
+      {lookup && (
+        <aside className="lookup-drawer" role="dialog" aria-label="词典释义">
+          <div className="lookup-header">
+            <strong>{lookup.surface}</strong>
+            <span>{lookup.entry.phonetic} · {lookup.entry.pos}</span>
+            <button className="close-button" onClick={() => setLookup(null)} aria-label="关闭">×</button>
+          </div>
+          <p className="lookup-brief">{lookup.entry.briefZh}</p>
+          <ol>{lookup.entry.definitions.map((definition) => <li key={definition}>{definition}</li>)}</ol>
+          <div className="lookup-actions">
+            <button className="button button-primary" onClick={saveGlossFromLookup}>保存译注</button>
+            <button className="button" onClick={() => onNotice('已加入生词本')}>加入生词本</button>
+          </div>
+        </aside>
+      )}
+
+      {showSettings && (
+        <aside className="settings-drawer" role="dialog" aria-label="阅读设置">
+          <div className="drawer-header">
+            <strong>阅读设置</strong>
+            <button className="close-button" onClick={() => setShowSettings(false)} aria-label="关闭">×</button>
+          </div>
+          <div className="setting-row">
+            <span>字号</span>
+            <button className="toolbar-button" onClick={() => setFontSize((size) => Math.max(80, size - 10))}>A−</button>
+            <span className="font-size-label">{fontSize}%</span>
+            <button className="toolbar-button" onClick={() => setFontSize((size) => Math.min(150, size + 10))}>A+</button>
+          </div>
+          <div className="setting-row">
+            <span>行距</span>
+            {([1.4, 1.6, 1.8, 2.0] as const).map((value) => (
+              <button key={value} className={`toolbar-button ${lineHeight === value ? 'active' : ''}`} onClick={() => setLineHeight(value)}>{value}</button>
+            ))}
+          </div>
+          <div className="setting-row">
+            <span>页边距</span>
+            {([12, 24, 40] as const).map((value) => (
+              <button key={value} className={`toolbar-button ${margin === value ? 'active' : ''}`} onClick={() => setMargin(value)}>{value === 12 ? '窄' : value === 24 ? '中' : '宽'}</button>
+            ))}
+          </div>
+        </aside>
+      )}
+
+      {showToc && (
+        <aside className="toc-drawer" role="dialog" aria-label="目录">
+          <div className="drawer-header">
+            <strong>目录</strong>
+            <button className="close-button" onClick={() => setShowToc(false)} aria-label="关闭">×</button>
+          </div>
+          <nav className="toc-list">
+            {toc.map((item) => (
+              <button key={item.href} className="toc-item" onClick={() => gotoChapter(item.href)}>{item.label}</button>
+            ))}
+          </nav>
+        </aside>
+      )}
     </section>
   );
 }

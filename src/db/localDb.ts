@@ -28,8 +28,9 @@ function storageSet(key: string, value: string) {
       localStorage.setItem(key, value);
       return;
     }
-  } catch {
+  } catch (error) {
     // Fall back to the in-memory store in restricted/webview test contexts.
+    console.error('[localDb] localStorage write failed:', error);
   }
   memoryStorage.set(key, value);
 }
@@ -124,5 +125,16 @@ const defaultDictionary: DictionaryEntry[] = [
 ];
 
 export function createId(prefix: string) {
-  return `${prefix}-${crypto.randomUUID()}`;
+  try {
+    if (typeof crypto !== 'undefined' && typeof crypto.getRandomValues === 'function') {
+      const buffer = new Uint8Array(16);
+      crypto.getRandomValues(buffer);
+      const hex = Array.from(buffer, (byte) => byte.toString(16).padStart(2, '0')).join('');
+      return `${prefix}-${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 32)}`;
+    }
+  } catch {
+    // Fall back to Math.random in environments without crypto support.
+  }
+  const fallback = Array.from({ length: 16 }, () => Math.floor(Math.random() * 256).toString(16).padStart(2, '0')).join('');
+  return `${prefix}-${fallback.slice(0, 8)}-${fallback.slice(8, 12)}-${fallback.slice(12, 16)}-${fallback.slice(16, 32)}`;
 }
